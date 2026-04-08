@@ -709,6 +709,24 @@
           }
         }
 
+        // 点数に応じた評価を計算
+        const totalScoreNum = parseFloat(data.total || 0);
+        let evaluation = "Keep Trying!";
+        let evalColor = "text-gray-500";
+        if (totalScoreNum >= 10) {
+          evaluation = "Perfect!";
+          evalColor = "text-yellow-500";
+        } else if (totalScoreNum >= 9) {
+          evaluation = "Excellent!";
+          evalColor = "text-blue-500";
+        } else if (totalScoreNum >= 8) {
+          evaluation = "Very Good!";
+          evalColor = "text-green-500";
+        } else if (totalScoreNum >= 7) {
+          evaluation = "Good!";
+          evalColor = "text-orange-500";
+        }
+
         return (
           <div className="flex flex-col h-full p-4 sm:p-8 animate-fade-in bg-white h-screen sm:h-[85vh] sm:rounded-[2.5rem] sm:shadow-2xl overflow-y-auto max-w-4xl mx-auto w-full">
             <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-100">
@@ -725,18 +743,16 @@
                    )}
                  </div>
               </div>
-              <div className="text-right">
-                <span className="text-5xl sm:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{data.total || 0}</span>
-                <span className="text-xl sm:text-3xl text-gray-400 font-bold"> / 10</span>
+              <div className="flex items-center gap-3 sm:gap-6">
+                <div className={`text-3xl sm:text-4xl font-black italic transform -rotate-6 ${evalColor} drop-shadow-md`}>
+                  {evaluation}
+                </div>
+                <div className="text-right">
+                  <span className="text-5xl sm:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{data.total || 0}</span>
+                  <span className="text-xl sm:text-3xl text-gray-400 font-bold"> / 10</span>
+                </div>
               </div>
             </div>
-
-            {data.audioUrl && (
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 mb-5 shadow-sm flex flex-col items-center">
-                <span className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><IconMic className="w-4 h-4" /> あなたの録音データ</span>
-                <audio controls src={getDownloadUrl(data.audioUrl)} className="w-full max-w-sm rounded-lg outline-none"></audio>
-              </div>
-            )}
 
             {data.highlighted_text && (
               <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-200 mb-5 shadow-sm">
