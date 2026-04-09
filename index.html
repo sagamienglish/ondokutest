@@ -89,7 +89,7 @@
         return { classNum: '', studentNum: '', password: '', teacherId: '' };
       });
 
-      // ダイレクトリンクでアクセスされた場合の処理
+      // URLから直接結果を開く機能
       useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const tId = urlParams.get('teacher');
@@ -172,11 +172,25 @@
         return () => clearInterval(timerId);
       }, [isRecording, timeRemaining]);
 
+      // ★ 修正：省エネ機能によるスリープを強制的に再起動する処理を追加
       const startVisualizer = (stream) => {
-        if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        source.connect(analyserRef.current);
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        
+        if (!audioContextRef.current) {
+           audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        // スリープ状態になっていたら叩き起こす
+        if (audioContextRef.current.state === 'suspended') {
+           audioContextRef.current.resume();
+        }
+        
+        // 複数回接続されるのを防ぐため、無い場合のみ接続を作る
+        if (!analyserRef.current) {
+           analyserRef.current = audioContextRef.current.createAnalyser();
+           const source = audioContextRef.current.createMediaStreamSource(stream);
+           source.connect(analyserRef.current);
+        }
+
         const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
         const updateMicLevel = () => {
           analyserRef.current.getByteFrequencyData(dataArray);
@@ -261,8 +275,10 @@
           const stream = streamRef.current || await navigator.mediaDevices.getUserMedia({ audio: true });
           if (!streamRef.current) {
              streamRef.current = stream;
-             startVisualizer(stream);
           }
+          // ★ 追加：録音開始時にも確実にビジュアライザー（メーター）を再起動して動かす！
+          startVisualizer(stream);
+
           mediaRecorderRef.current = new MediaRecorder(stream);
           audioChunksRef.current = [];
           mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
@@ -541,9 +557,10 @@
                   <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed">声を出してメーターが動くか確認しましょう。大きい声でバーが一番上まで届けばバッチリです！</p>
                 </div>
                 <div className="w-6 sm:w-8 h-20 bg-gray-200 rounded-full overflow-hidden border border-gray-300 shadow-inner flex flex-col justify-end">
+                  {/* ★少しの音量でしっかり反応するように、高さを3.5倍の感度に調整 */}
                   <div 
                     className="w-full transition-all duration-[50ms] ease-out rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" 
-                    style={{ height: `${Math.min(100, micLevel * 2.5)}%` }}
+                    style={{ height: `${Math.min(100, micLevel * 3.5)}%` }}
                   ></div>
                 </div>
               </div>
@@ -630,7 +647,7 @@
                <div className="flex-1 w-5 sm:w-8 bg-gray-100 rounded-full overflow-hidden flex flex-col justify-end border shadow-inner">
                  <div 
                    className="w-full transition-all duration-[50ms] ease-out rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]"
-                   style={{ height: `${Math.min(100, micLevel * 2.5)}%` }}
+                   style={{ height: `${Math.min(100, micLevel * 3.5)}%` }}
                  ></div>
                </div>
                <span className="text-[10px] sm:text-xs font-bold text-gray-400 mt-3">VOLUME</span>
