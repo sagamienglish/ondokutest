@@ -36,7 +36,7 @@
 
     // ① 先生方の「新しいGASのURL」を設定してください
     const TEACHERS = [
-      { id: 'nakamura', name: '中村先生', url: "https://script.google.com/macros/s/AKfycbxB67g0l1LYHdqFcwh7TGaERjS5YbeVCT-SAH4GfFbcBMq6H-3k80xgmCOI5sLSkoF0qw/exec" },
+      { id: 'nakamura', name: '中村先生', url: "https://script.google.com/macros/s/AKfycbwmpuL7-KsWJfAZSfnuGvTyMfkktchwAqZgivr68hkWN9QkseSmp0b8i3FfoWABCeEb/exec" },
       { id: 'kobari', name: '小針先生', url: "小針先生のGAS_URLをここに貼り付け" },
       { id: 'mochizuki', name: '望月先生', url: "望月先生のGAS_URLをここに貼り付け" },
       { id: 'uomi', name: '魚躬先生', url: "魚躬先生のGAS_URLをここに貼り付け" },
@@ -882,15 +882,18 @@
             )}
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-              {[{ l: '発音', s: data.p_score, m: 4, f: data.p_fb }, { l: '抑揚', s: data.i_score, m: 3, f: data.i_fb }, { l: 'つながり', s: data.f_score, m: 3, f: data.f_fb }].map((item, idx) => (
+              {[{ l: '発音', s: data.p_score, m: 4, f: data.p_fb }, { l: '抑揚', s: data.i_score, m: 3, f: data.i_fb }, { l: 'つながり', s: data.f_score, m: 3, f: data.f_fb }].map((item, idx) => {
+                // ★修正: AIが誤って出力したHTMLタグ(<ul><li>等)を画面表示前に自動で除去する
+                const cleanFb = (item.f || "").replace(/<\/?[^>]+(>|$)/g, "");
+                return (
                 <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col shadow-sm">
                   <div className="flex justify-between items-center mb-2 border-b border-gray-200 pb-2">
                     <span className="font-bold text-gray-700">{item.l}</span>
                     <span className="font-black text-blue-600 text-xl">{item.s} <span className="text-sm text-gray-400 font-normal">/{item.m}</span></span>
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-600 whitespace-pre-wrap flex-1 leading-relaxed">{item.f}</div>
+                  <div className="text-xs sm:text-sm text-gray-600 whitespace-pre-wrap flex-1 leading-relaxed">{cleanFb}</div>
                 </div>
-              ))}
+              )})}
             </div>
             
             <div className="bg-blue-50 p-4 sm:p-5 rounded-2xl mb-5 border border-blue-100 flex-1 shadow-sm">
