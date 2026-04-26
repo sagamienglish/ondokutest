@@ -259,6 +259,8 @@
       const startRecording = async () => {
         setTranscript("");
         setTimeRemaining(timeLimit); 
+        setAudioBlob(null);
+        setAudioUrl(null);
         try {
           const stream = streamRef.current || await navigator.mediaDevices.getUserMedia({ audio: true });
           if (!streamRef.current) {
@@ -269,14 +271,13 @@
           audioChunksRef.current = [];
           mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
           
-          // ★変更：録音停止時にプレビュー画面（step: 'preview'）へ遷移する
           mediaRecorderRef.current.onstop = async () => {
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
             const blob = new Blob(audioChunksRef.current, { type: mediaRecorderRef.current.mimeType || 'audio/webm' });
             
+            // 録音完了後、画面遷移せずにURLをセットしてUIを切り替える
             setAudioBlob(blob);
             setAudioUrl(URL.createObjectURL(blob));
-            setStep('preview'); 
 
             stream.getTracks().forEach(track => track.stop());
             streamRef.current = null;
@@ -295,7 +296,6 @@
           mediaRecorderRef.current.stop();
           if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch(e) {} }
           setIsRecording(false);
-          // ※ onstop イベントが発火し、プレビュー画面へ遷移します
         }
       };
 
@@ -624,7 +624,7 @@
                 <span className="text-base">{userInfo.name}さん</span>
                 <span className="bg-blue-200 text-blue-700 px-2 py-0.5 rounded text-xs">L{userInfo.lesson}-{selectedPart}</span>
               </div>
-              <div className={`flex items-center gap-1 font-mono text-2xl sm:text-3xl font-black px-3 py-1 rounded-lg border-2 ${timeRemaining <= 5 ? 'bg-red-100 border-red-300 text-red-600 animate-pulse' : 'bg-white border-blue-200 text-blue-700 shadow-sm'}`}>
+              <div className={`flex items-center gap-1 font-mono text-2xl sm:text-3xl font-black px-3 py-1 rounded-lg border-2 ${timeRemaining <= 5 && !audioUrl ? 'bg-red-100 border-red-300 text-red-600 animate-pulse' : 'bg-white border-blue-200 text-blue-700 shadow-sm'}`}>
                 <IconClock className="w-6 h-6" /> {timeRemaining}s
               </div>
            </div>
@@ -647,46 +647,35 @@
              </div>
            </div>
 
-           {!isRecording ? (
-             <button onClick={startRecording} className="w-full py-4 sm:py-5 bg-red-500 text-white rounded-2xl font-bold text-xl shadow-[0_8px_20px_rgba(239,68,68,0.3)] hover:bg-red-600 active:scale-95 flex justify-center items-center gap-2 transition-all">
-               <IconMic className="w-6 h-6" /> 録音スタート
-             </button>
+           {!audioUrl ? (
+             !isRecording ? (
+               <button onClick={startRecording} className="w-full py-4 sm:py-5 bg-red-500 text-white rounded-2xl font-bold text-xl shadow-[0_8px_20px_rgba(239,68,68,0.3)] hover:bg-red-600 active:scale-95 flex justify-center items-center gap-2 transition-all">
+                 <IconMic className="w-6 h-6" /> 録音スタート
+               </button>
+             ) : (
+               <button onClick={stopRecording} className="w-full py-4 sm:py-5 bg-gray-800 text-white rounded-2xl font-bold text-xl shadow-lg hover:bg-gray-900 active:scale-95 flex justify-center items-center gap-2 transition-all">
+                 <IconSend className="w-6 h-6" /> 完了して確認へ！
+               </button>
+             )
            ) : (
-             <button onClick={stopRecording} className="w-full py-4 sm:py-5 bg-gray-800 text-white rounded-2xl font-bold text-xl shadow-lg hover:bg-gray-900 active:scale-95 flex justify-center items-center gap-2 transition-all">
-               <IconSend className="w-6 h-6" /> 完了して確認へ！
-             </button>
+             <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-inner flex flex-col gap-3 animate-fade-in">
+                <audio controls src={audioUrl} className="w-full h-12 outline-none" />
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button onClick={() => {
+                    setAudioBlob(null);
+                    setAudioUrl(null);
+                    setTimeRemaining(timeLimit);
+                  }} className="flex-1 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl font-bold text-lg hover:bg-gray-50 active:scale-95 transition-all shadow-sm">
+                    録り直す
+                  </button>
+                  <button onClick={() => {
+                    submitDataToGas(audioBlob);
+                  }} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-bold text-lg shadow-md hover:opacity-90 active:scale-95 flex justify-center items-center gap-2 transition-all">
+                    <IconSend className="w-6 h-6" /> この音声で提出する
+                  </button>
+                </div>
+             </div>
            )}
-        </div>
-      );
-
-      // ★追加：録音後のプレビュー（試聴・やり直し）画面
-      const renderPreview = () => (
-        <div className="flex flex-col h-full justify-center p-4 sm:p-6 space-y-6 animate-fade-in bg-white h-screen sm:h-[85vh] sm:rounded-[2.5rem] sm:shadow-2xl max-w-2xl mx-auto w-full">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-gray-800">録音した音声の確認</h2>
-            <p className="text-gray-500 text-sm">提出する前に自分の声を聴いてみましょう</p>
-          </div>
-          
-          <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 shadow-inner">
-            <audio controls src={audioUrl} className="w-full h-12 outline-none mb-2" />
-            <p className="text-xs text-center text-blue-600 font-bold mt-2">▶ 再生ボタンを押してチェック</p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 mt-6">
-            <button onClick={() => {
-              setAudioBlob(null);
-              setAudioUrl(null);
-              setTimeRemaining(timeLimit);
-              setStep('recording'); // やり直す場合は録音画面に戻る
-            }} className="flex-1 py-4 sm:py-5 bg-white text-gray-700 border-2 rounded-2xl font-bold text-lg hover:bg-gray-50 active:scale-95 transition-all shadow-sm">
-              録り直す
-            </button>
-            <button onClick={() => {
-              submitDataToGas(audioBlob); // 納得したらGASへ送信
-            }} className="flex-1 py-4 sm:py-5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:opacity-90 active:scale-95 flex justify-center items-center gap-2 transition-all">
-              <IconSend className="w-6 h-6" /> この音声で提出する
-            </button>
-          </div>
         </div>
       );
 
@@ -890,7 +879,6 @@
         if (step === 'shuffling') return renderShuffling();
         if (step === 'preparing') return renderPreparing();
         if (step === 'recording') return renderRecording();
-        if (step === 'preview') return renderPreview(); // ★録音後のプレビュー画面
         if (step === 'submitting') return renderSubmitting();
         if (step === 'submitted') return renderSubmitted();
       }
